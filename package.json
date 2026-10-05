@@ -1,0 +1,14 @@
+{
+  "name": "rotty-lite",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The open-source version of Rotty: a Chrome extension that hides low-effort posts on Reddit, X and LinkedIn.",
+  "license": "MIT",
+  "author": "Doplex Labs",
+  "repository": "github:DoplexLabs/rotty-open-source",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test tests/",
+    "package": "node scripts/package.mjs"
+  }
+}

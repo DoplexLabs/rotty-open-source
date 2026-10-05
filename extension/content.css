@@ -1,0 +1,13 @@
+/* The fold Rotty leaves where a post was hidden. Kept small and neutral so it fits every site. */
+.rotty-hidden { display: none !important; }
+.rotty-bar {
+  display: flex; align-items: center; gap: 10px;
+  margin: 4px 0; padding: 6px 12px;
+  border: 1px dashed rgba(127, 127, 127, .45); border-radius: 10px;
+  font: 500 13px/1.4 system-ui, -apple-system, sans-serif; color: inherit; opacity: .8;
+}
+.rotty-bar button {
+  margin-left: auto; padding: 2px 10px; border: 1px solid currentColor; border-radius: 99px;
+  background: transparent; color: inherit; font: 600 12px system-ui, sans-serif; cursor: pointer;
+}
+.rotty-bar button:hover { opacity: .75; }

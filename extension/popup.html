@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Rotty Lite</title>
+<link rel="stylesheet" href="ui.css" />
+<style>
+  body { width: 300px; padding: 16px; }
+  .brand img { width: 34px; height: 34px; }
+  .brand b { font-size: 17px; }
+  .status { margin: 16px 0; padding: 14px; background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; }
+  .count { font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+  .status small { color: var(--ink-3); }
+  .err { color: var(--err); font-size: 13px; margin-top: 8px; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 13.5px; }
+</style>
+</head>
+<body>
+  <div class="brand"><img src="icons/icon-128.png" alt="" /><div><b>Rotty Lite</b><small>Open source, by Doplex Labs</small></div></div>
+  <div class="status">
+    <div class="count" id="count">–</div>
+    <small id="where">Open Reddit, X or LinkedIn</small>
+    <div class="err" id="err" hidden></div>
+  </div>
+  <label class="switch">On guard <input type="checkbox" id="enabled" /></label>
+  <div class="row"><a href="options.html" target="_blank">Settings</a><a href="https://github.com/DoplexLabs/rotty-open-source" target="_blank" rel="noopener">GitHub</a></div>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+name: Bug report
+description: Something broke or looks wrong
+labels: [bug]
+body:
+  - type: dropdown
+    id: site
+    attributes:
+      label: Site
+      options: [Reddit, old.reddit.com, X, LinkedIn, Settings or popup]
+    validations: { required: true }
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Model
+      options: [Ollama, Groq, OpenAI, Anthropic, Gemini]
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what happened instead. Leave out API keys.
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Chrome version
+      placeholder: e.g. 141

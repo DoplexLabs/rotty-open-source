@@ -1,0 +1,15 @@
+name: Rotty stopped finding posts on a site
+description: Posts aren't being checked on Reddit, X or LinkedIn
+labels: [site-selectors]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: Page address
+      description: A page where it doesn't work (a public one, if you can).
+    validations: { required: true }
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Feed, comments, replies? Logged in or out?
