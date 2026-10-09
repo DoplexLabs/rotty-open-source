@@ -5,12 +5,12 @@
 <title>Rotty Lite settings</title>
 <link rel="stylesheet" href="ui.css" />
 <style>
-  main { max-width: 560px; margin: 0 auto; padding: 40px 24px 64px; }
-  .card { background: var(--paper); border: 2px solid var(--ink); border-radius: 18px; padding: 22px; margin-top: 24px; box-shadow: 0 4px 0 var(--ink); }
-  .field { margin-bottom: 18px; }
-  .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .local { background: #f4e4cc; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; color: var(--ink-2); margin-bottom: 18px; }
-  .local code { font: 12.5px ui-monospace, monospace; background: var(--paper); padding: 1px 5px; border-radius: 5px; }
+  main { max-width: 580px; margin: 0 auto; padding: 40px 24px 64px; }
+  .card { background: var(--paper); border: 2px solid var(--ink); border-radius: 18px; padding: 22px; margin-top: 24px; box-shadow: var(--card-shadow); }
+  .field { margin-bottom: 20px; }
+  .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+  .local { background: var(--local-bg); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; color: var(--ink-2); margin-bottom: 18px; }
+  .local code { font: 12.5px ui-monospace, monospace; background: var(--local-code-bg); padding: 1px 5px; border-radius: 5px; color: var(--ink); }
   footer { margin-top: 28px; font-size: 13px; color: var(--ink-3); }
 </style>
 </head>
@@ -20,7 +20,7 @@
 
   <form class="card" id="form">
     <div class="field">
-      <label for="provider">Model</label>
+      <label for="provider">Provider</label>
       <select id="provider"></select>
     </div>
 
@@ -29,10 +29,16 @@
       <code>ollama pull llama3.2</code> and start it with <code>OLLAMA_ORIGINS=chrome-extension://* ollama serve</code>
     </div>
 
+    <div class="field" id="base-url-field" hidden>
+      <label for="baseUrl">Base URL</label>
+      <input type="text" id="baseUrl" placeholder="https://openrouter.ai/api/v1 or http://localhost:1234/v1" autocomplete="off" spellcheck="false" />
+      <span class="hint" id="base-url-hint">Use with OpenRouter, LM Studio, custom Ollama server, etc.</span>
+    </div>
+
     <div class="field" id="key-field">
       <label for="apiKey">API key</label>
       <input type="password" id="apiKey" autocomplete="off" spellcheck="false" />
-      <span class="hint">Stored only in this browser and sent only to this provider.</span>
+      <span class="hint" id="key-hint">Stored only in this browser and sent only to this provider.</span>
     </div>
 
     <div class="field">
@@ -46,6 +52,43 @@
         <label><input type="radio" name="strictness" value="relaxed" /><span>Relaxed</span></label>
         <label><input type="radio" name="strictness" value="balanced" /><span>Balanced</span></label>
         <label><input type="radio" name="strictness" value="strict" /><span>Strict</span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Categories to hide</label>
+      <div class="checklist">
+        <label class="check-item"><input type="checkbox" id="cat-filler" checked /> Generic filler</label>
+        <label class="check-item"><input type="checkbox" id="cat-bait" checked /> Engagement bait</label>
+        <label class="check-item"><input type="checkbox" id="cat-promo" checked /> Self-promotion</label>
+        <label class="check-item"><input type="checkbox" id="cat-spam" checked /> Spam or scam</label>
+        <label class="check-item"><input type="checkbox" id="cat-reaction" checked /> Low-effort reaction</label>
+      </div>
+      <span class="hint">Rotty keeps posts in unchecked categories.</span>
+    </div>
+
+    <div class="field">
+      <label>Active sites</label>
+      <div class="checklist">
+        <label class="check-item"><input type="checkbox" id="site-reddit" checked /> Reddit</label>
+        <label class="check-item"><input type="checkbox" id="site-x" checked /> X / Twitter</label>
+        <label class="check-item"><input type="checkbox" id="site-linkedin" checked /> LinkedIn</label>
+      </div>
+      <span class="hint">Rotty will only scan feeds on enabled sites.</span>
+    </div>
+
+    <div class="field">
+      <label for="customInstructions">Custom filtering instructions <span class="hint" style="display:inline">optional</span></label>
+      <textarea id="customInstructions" placeholder="e.g. Hide crypto and NFT hype. Keep all job postings and coding questions." spellcheck="false"></textarea>
+      <span class="hint">Added to the model's instructions for every batch.</span>
+    </div>
+
+    <div class="field">
+      <label>Theme</label>
+      <div class="seg" role="radiogroup" id="theme-group">
+        <label><input type="radio" name="theme" value="system" /><span>System</span></label>
+        <label><input type="radio" name="theme" value="light" /><span>Light</span></label>
+        <label><input type="radio" name="theme" value="dark" /><span>Dark</span></label>
       </div>
     </div>
 

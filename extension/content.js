@@ -11,10 +11,22 @@
   const MIN_CHARS = 20;       // very short items are skipped (often specific, rarely worth a request)
   const BATCH = 8;            // posts per request
   const DEBOUNCE_MS = 400;    // wait for the page to settle before asking
+  const MAX_RETRIES = 3;      // retries for temporary API/Ollama failures
 
-  const seen = new WeakSet();
-  const queue = [];           // { id, el, item }
-  let timer = 0, nextId = 0, hiddenCount = 0, enabled = true, lastError = '';
+  let seen = new WeakSet();
+  const queue = [];           // { id, el, item, retries }
+  let timer = 0, nextId = 0, hiddenCount = 0, enabled = true, siteEnabled = true, lastError = '';
+  let isFlushing = false;
+
+  function updateBadge() {
+    try {
+      chrome.runtime.sendMessage({ type: 'badge', count: hiddenCount });
+    } catch (_) {}
+  }
+
+  function isActive() {
+    return enabled && siteEnabled;
+  }
 
   function readText(el, target) {
     const parts = [...el.querySelectorAll(target.text)]
@@ -25,7 +37,7 @@
   }
 
   function scan() {
-    if (!enabled) return;
+    if (!isActive()) return;
     for (const target of site.targets) {
       for (const el of document.querySelectorAll(target.item)) {
         if (seen.has(el)) continue;
@@ -33,27 +45,55 @@
         if (!text) continue;                     // not rendered yet; try again on the next change
         seen.add(el);
         if (text.length < MIN_CHARS) continue;
-        queue.push({ el, item: { id: `r${nextId++}`, site: site.name, kind: target.kind, text } });
+        queue.push({ el, item: { id: `r${nextId++}`, site: site.name, kind: target.kind, text }, retries: 0 });
       }
     }
-    if (queue.length) flush();
+    if (queue.length && !isFlushing) flush();
   }
 
   async function flush() {
-    while (queue.length) {
-      const batch = queue.splice(0, BATCH);
-      let res;
-      try {
-        res = await chrome.runtime.sendMessage({ type: 'classify', items: batch.map((b) => b.item) });
-      } catch (_) {
-        return; // extension reloaded or updated; this page will be re-scanned on the next load
+    if (isFlushing) return;
+    isFlushing = true;
+
+    try {
+      while (queue.length && isActive()) {
+        const batch = queue.splice(0, BATCH);
+        let res;
+        try {
+          res = await chrome.runtime.sendMessage({ type: 'classify', items: batch.map((b) => b.item) });
+        } catch (_) {
+          return; // extension reloaded or updated; this page will be re-scanned on the next load
+        }
+
+        if (!res || res.error) {
+          lastError = (res && res.error) || 'No answer from the model.';
+          const currentRetries = (batch[0]?.retries || 0) + 1;
+          if (currentRetries <= MAX_RETRIES) {
+            for (const b of batch) b.retries = currentRetries;
+            queue.unshift(...batch);
+            await new Promise((resolve) => setTimeout(resolve, 1000 * currentRetries));
+            continue;
+          } else {
+            // Exceeded retries: remove from seen so posts are not permanently dropped
+            for (const b of batch) seen.delete(b.el);
+            continue;
+          }
+        }
+
+        lastError = '';
+        let newlyFolded = 0;
+        for (const b of batch) {
+          const v = res.verdicts && res.verdicts[b.item.id];
+          if (v && v.hide) {
+            fold(b.el, v.label || 'slop');
+            newlyFolded++;
+          }
+        }
+        if (newlyFolded > 0) updateBadge();
       }
-      if (!res || res.error) { lastError = (res && res.error) || 'No answer from the model.'; continue; }
-      lastError = '';
-      for (const b of batch) {
-        const v = res.verdicts[b.item.id];
-        if (v && v.hide) fold(b.el, v.label || 'slop');
-      }
+    } finally {
+      isFlushing = false;
+      if (queue.length && isActive()) schedule();
     }
   }
 
@@ -81,22 +121,61 @@
     for (const bar of document.querySelectorAll('.rotty-bar')) bar.remove();
     for (const el of document.querySelectorAll('.rotty-hidden')) el.classList.remove('rotty-hidden');
     hiddenCount = 0;
+    updateBadge();
+  }
+
+  function resetAndRescan() {
+    unfoldAll();
+    seen = new WeakSet();
+    queue.length = 0;
+    schedule();
   }
 
   const schedule = () => { clearTimeout(timer); timer = setTimeout(scan, DEBOUNCE_MS); };
   new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
 
-  chrome.storage.local.get({ enabled: true }).then((s) => { enabled = s.enabled; schedule(); });
+  chrome.storage.local.get({
+    enabled: true,
+    sites: { reddit: true, x: true, linkedin: true },
+  }).then((s) => {
+    enabled = s.enabled !== false;
+    siteEnabled = !s.sites || s.sites[site.name] !== false;
+    schedule();
+  });
+
   chrome.storage.onChanged.addListener((c) => {
+    let stateChanged = false;
     if (c.enabled) {
-      enabled = c.enabled.newValue;
-      if (!enabled) unfoldAll();
-      else schedule();
+      const prev = enabled;
+      enabled = c.enabled.newValue !== false;
+      if (prev !== enabled) stateChanged = true;
+    }
+    if (c.sites) {
+      const sitesMap = c.sites.newValue || {};
+      const prevSite = siteEnabled;
+      siteEnabled = sitesMap[site.name] !== false;
+      if (prevSite !== siteEnabled) stateChanged = true;
+    }
+    if (c.categories || c.strictness || c.customInstructions || c.provider || c.model) {
+      stateChanged = true;
+    }
+
+    if (stateChanged) {
+      if (!isActive()) {
+        unfoldAll();
+        seen = new WeakSet();
+        queue.length = 0;
+      } else {
+        // Toggled back on or settings changed: re-scan posts on the current page
+        resetAndRescan();
+      }
     }
   });
 
   // The toolbar popup asks how many posts are hidden on this page.
   chrome.runtime.onMessage.addListener((msg, sender, reply) => {
-    if (sender.id === chrome.runtime.id && msg && msg.type === 'status') reply({ site: site.name, hidden: hiddenCount, error: lastError });
+    if (sender.id === chrome.runtime.id && msg && msg.type === 'status') {
+      reply({ site: site.name, hidden: hiddenCount, error: lastError, active: isActive() });
+    }
   });
 })();

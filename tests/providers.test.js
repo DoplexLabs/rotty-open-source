@@ -49,3 +49,50 @@ test('an unreachable model says so', async () => {
   const down = async () => { throw new TypeError('fetch failed'); };
   await assert.rejects(complete({ provider: 'ollama' }, prompt, down), /Could not reach the model/);
 });
+
+test('normalizeUrl formats OpenAI-compatible endpoints correctly', () => {
+  const { normalizeUrl } = require('../extension/providers.js');
+  assert.equal(normalizeUrl('https://openrouter.ai/api/v1'), 'https://openrouter.ai/api/v1/chat/completions');
+  assert.equal(normalizeUrl('https://openrouter.ai/api/v1/'), 'https://openrouter.ai/api/v1/chat/completions');
+  assert.equal(normalizeUrl('http://localhost:1234/v1'), 'http://localhost:1234/v1/chat/completions');
+  assert.equal(normalizeUrl('http://127.0.0.1:11434'), 'http://127.0.0.1:11434/v1/chat/completions');
+  assert.equal(normalizeUrl('http://localhost:8000/v1/chat/completions'), 'http://localhost:8000/v1/chat/completions');
+  assert.equal(normalizeUrl(''), '');
+});
+
+test('custom OpenAI-compatible provider requires baseUrl and sends key if provided', async () => {
+  await assert.rejects(complete({ provider: 'custom' }, prompt, fake({})), /Add a Base URL/);
+
+  const c1 = fake({ choices: [{ message: { content: 'ok' } }] });
+  await complete({ provider: 'custom', baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'sk-or-test', model: 'meta-llama/llama-3' }, prompt, c1);
+  assert.equal(c1.calls[0].url, 'https://openrouter.ai/api/v1/chat/completions');
+  assert.equal(c1.calls[0].init.headers.authorization, 'Bearer sk-or-test');
+  assert.equal(c1.calls[0].body.model, 'meta-llama/llama-3');
+
+  // Key is optional for local LM Studio
+  const c2 = fake({ choices: [{ message: { content: 'ok' } }] });
+  await complete({ provider: 'custom', baseUrl: 'http://localhost:1234/v1' }, prompt, c2);
+  assert.equal(c2.calls[0].url, 'http://localhost:1234/v1/chat/completions');
+  assert.equal(c2.calls[0].init.headers.authorization, undefined);
+});
+
+test('custom baseUrl can override default provider url', async () => {
+  const f = fake({ choices: [{ message: { content: 'ok' } }] });
+  await complete({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1' }, prompt, f);
+  assert.equal(f.calls[0].url, 'http://127.0.0.1:11434/v1/chat/completions');
+});
+
+test('retries without response_format if provider rejects it with 400', async () => {
+  let callCount = 0;
+  const retryFake = async (url, init) => {
+    callCount++;
+    const body = JSON.parse(init.body);
+    if (body.response_format) {
+      return { ok: false, status: 400, json: async () => ({ error: { message: "response_format 'json_object' is not supported" } }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"verdicts":[]}' } }] }) };
+  };
+  const res = await complete({ provider: 'custom', baseUrl: 'http://localhost:1234/v1' }, prompt, retryFake);
+  assert.equal(res, '{"verdicts":[]}');
+  assert.equal(callCount, 2);
+});

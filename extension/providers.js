@@ -16,10 +16,20 @@
     openai: { label: 'OpenAI', model: 'gpt-4.1-mini', needsKey: true, url: 'https://api.openai.com/v1/chat/completions' },
     anthropic: { label: 'Anthropic', model: 'claude-haiku-4-5', needsKey: true, url: 'https://api.anthropic.com/v1/messages' },
     gemini: { label: 'Google Gemini', model: 'gemini-2.5-flash', needsKey: true, url: 'https://generativelanguage.googleapis.com/v1beta/models' },
+    custom: { label: 'Custom (OpenAI-compatible)', model: 'default', needsKey: false, url: '' },
   };
 
   class ProviderError extends Error {
     constructor(message, status) { super(message); this.status = status; }
+  }
+
+  function normalizeUrl(urlOrBase) {
+    if (!urlOrBase || typeof urlOrBase !== 'string') return '';
+    const u = urlOrBase.trim().replace(/\/+$/, '');
+    if (!u) return '';
+    if (u.endsWith('/chat/completions')) return u;
+    if (u.endsWith('/v1')) return `${u}/chat/completions`;
+    return `${u}/v1/chat/completions`;
   }
 
   async function post(fetchFn, url, headers, body) {
@@ -37,11 +47,14 @@
     return data;
   }
 
-  // settings: { provider, model, apiKey }. fetchFn is injectable for tests.
+  // settings: { provider, model, apiKey, baseUrl }. fetchFn is injectable for tests.
   async function complete(settings, prompt, fetchFn = fetch) {
     const p = PROVIDERS[settings.provider];
     if (!p) throw new ProviderError('Pick a provider in Settings.', 0);
     if (p.needsKey && !settings.apiKey) throw new ProviderError('Add your API key in Settings.', 0);
+    if (settings.provider === 'custom' && (!settings.baseUrl || !settings.baseUrl.trim())) {
+      throw new ProviderError('Add a Base URL in Settings.', 0);
+    }
     const model = settings.model || p.model;
 
     if (settings.provider === 'anthropic') {
@@ -62,16 +75,30 @@
       return (((data.candidates || [])[0] || {}).content || { parts: [] }).parts.map((x) => x.text || '').join('');
     }
 
-    // OpenAI-compatible: OpenAI, Groq, Ollama.
+    // OpenAI-compatible: OpenAI, Groq, Ollama, Custom.
+    const url = (settings.baseUrl && settings.baseUrl.trim())
+      ? normalizeUrl(settings.baseUrl)
+      : p.url;
     const headers = settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {};
-    const data = await post(fetchFn, p.url, headers, {
+    const body = {
       model,
       temperature: 0,
       response_format: { type: 'json_object' },
       messages: [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }],
-    });
+    };
+    let data;
+    try {
+      data = await post(fetchFn, url, headers, body);
+    } catch (err) {
+      if (err.status === 400 && /response_format/i.test(err.message)) {
+        delete body.response_format;
+        data = await post(fetchFn, url, headers, body);
+      } else {
+        throw err;
+      }
+    }
     return (((data.choices || [])[0] || {}).message || {}).content || '';
   }
 
-  return { PROVIDERS, ProviderError, complete };
+  return { PROVIDERS, ProviderError, complete, normalizeUrl };
 });
