@@ -43,15 +43,16 @@ Rotty reads each post the way a person would and folds the slop away, leaving on
 | **Ollama** (default) | Free | Runs on your computer; nothing leaves it | Install [Ollama](https://ollama.com), then `ollama pull llama3.2` and start it with `OLLAMA_ORIGINS=chrome-extension://* ollama serve` |
 | **Groq** | Free key | Post text goes to Groq | Paste a key from [console.groq.com](https://console.groq.com) |
 | **OpenAI**, **Anthropic**, **Gemini** | Your API usage | Post text goes to that provider | Paste your API key |
+| **Custom (OpenAI-compatible)** | Varies / Free local | Depends on endpoint | Use with OpenRouter, LM Studio, custom Ollama servers, etc. |
 
-Click **Test**. When it says *"Works: it hid the slop and kept the useful reply"*, open Reddit, X or LinkedIn and scroll.
+Click **Test**. When it says *"Works: it hid the slop and kept the useful reply"*, open Reddit, X/Twitter or LinkedIn and scroll.
 
 ## How it works
 
 ```mermaid
 flowchart LR
   A["Content script<br/>finds posts as you scroll"] -- "post text, in small batches" --> B["Service worker<br/>holds settings and keys"]
-  B -- "one prompt per batch" --> C["Your model<br/>Ollama · Groq · OpenAI · Anthropic · Gemini"]
+  B -- "one prompt per batch" --> C["Your model<br/>Ollama · Groq · OpenAI · Anthropic · Gemini · Custom"]
   C -- "JSON verdicts" --> B
   B -- "hide? why?" --> A
   A --> D["Folds slop into<br/>🐾 Hidden by Rotty: reason · Show"]

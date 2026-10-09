@@ -43,3 +43,43 @@ test('parse returns nothing for broken output', () => {
   assert.deepEqual(parse('{"verdicts": [', items), {});
   assert.deepEqual(parse('', items), {});
 });
+
+test('parse handles top-level JSON arrays', () => {
+  const arrJson = '[{"id":"a","hide":true,"category":"promo"},{"id":"b","hide":false}]';
+  const v = parse(arrJson, items);
+  assert.deepEqual(v.a, { hide: true, category: 'promo', label: CATEGORIES.promo });
+  assert.deepEqual(v.b, { hide: false, category: null, label: null });
+});
+
+test('parse strips <think> blocks from reasoning models', () => {
+  const thinkResponse = '<think>\nEvaluating item a: it looks like low-effort filler { "ignore": true }.\nEvaluating item b: helpful insight.\n</think>\n{"verdicts":[{"id":"a","hide":true,"category":"filler"},{"id":"b","hide":false}]}';
+  const v = parse(thinkResponse, items);
+  assert.deepEqual(v.a, { hide: true, category: 'filler', label: CATEGORIES.filler });
+  assert.deepEqual(v.b, { hide: false, category: null, label: null });
+});
+
+test('parse strips <think> blocks followed by top-level array', () => {
+  const thinkWithArray = '<think>I will output an array</think>\n[{"id":"a","hide":true,"category":"bait"}]';
+  const v = parse(thinkWithArray, items);
+  assert.deepEqual(v.a, { hide: true, category: 'bait', label: CATEGORIES.bait });
+});
+
+test('build and parse respect category-level controls', () => {
+  const categories = { filler: false, bait: true, promo: true, spam: true, reaction: true };
+  const p = build(items, 'balanced', { categories });
+  assert.ok(!p.system.includes('- filler:'));
+  assert.ok(p.system.includes('- bait:'));
+
+  // If model still flags as disabled category, it should not be hidden
+  const v = parse('{"verdicts":[{"id":"a","hide":true,"category":"filler"}]}', items, categories);
+  assert.deepEqual(v.a, { hide: false, category: null, label: null });
+
+  // If flagged as enabled category, it should be hidden
+  const v2 = parse('{"verdicts":[{"id":"a","hide":true,"category":"bait"}]}', items, categories);
+  assert.deepEqual(v2.a, { hide: true, category: 'bait', label: CATEGORIES.bait });
+});
+
+test('build includes custom filtering instructions', () => {
+  const p = build(items, 'balanced', { customInstructions: 'Hide all crypto posts.' });
+  assert.match(p.system, /Hide all crypto posts\./);
+});

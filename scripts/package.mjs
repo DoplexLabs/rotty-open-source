@@ -2,8 +2,9 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('..', import.meta.url));
 const { version } = JSON.parse(readFileSync(join(root, 'extension/manifest.json'), 'utf8'));
 const out = join(root, 'dist', `rotty-lite-${version}.zip`);
 mkdirSync(join(root, 'dist'), { recursive: true });

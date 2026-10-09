@@ -12,6 +12,7 @@
   .count { font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
   .status small { color: var(--ink-3); }
   .err { color: var(--err); font-size: 13px; margin-top: 8px; }
+  .site-control { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
   .row { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 13.5px; }
 </style>
 </head>
@@ -22,7 +23,10 @@
     <small id="where">Open Reddit, X or LinkedIn</small>
     <div class="err" id="err" hidden></div>
   </div>
-  <label class="switch">On guard <input type="checkbox" id="enabled" /></label>
+  <label class="switch">On guard (all sites) <input type="checkbox" id="enabled" /></label>
+  <div class="site-control" id="site-control" hidden>
+    <label class="switch"><span id="site-label">On this site</span> <input type="checkbox" id="site-enabled" /></label>
+  </div>
   <div class="row"><a href="options.html" target="_blank">Settings</a><a href="https://github.com/DoplexLabs/rotty-open-source" target="_blank" rel="noopener">GitHub</a></div>
 <script src="popup.js"></script>
 </body>

@@ -7,7 +7,11 @@
  *   text:  the element inside it that holds what the person wrote
  *   kind:  'post' or 'reply' (the model is told which)
  */
-(function (root) {
+(function (root, factory) {
+  const mod = factory();
+  if (typeof module === 'object' && module.exports) module.exports = mod;
+  else root.RottySites = mod;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const SITES = {
     reddit: {
@@ -19,7 +23,7 @@
       ],
     },
     x: {
-      host: /(^|\.)x\.com$/,
+      host: /(^|\.)(x|twitter)\.com$/,
       targets: [
         { item: 'article[data-testid="tweet"]', text: '[data-testid="tweetText"]', kind: 'post' },
       ],
@@ -38,5 +42,5 @@
     return null;
   }
 
-  root.RottySites = { SITES, forHost };
-})(globalThis);
+  return { SITES, forHost };
+});
